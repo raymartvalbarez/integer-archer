@@ -1743,7 +1743,10 @@
 
   if (DEMO) {
     $('load-status').textContent = 'Demo mode — scores not saved.';
+    let kicked = false;
     const kick = function () {
+      if (kicked) return;
+      kicked = true;
       try { window.__IA_TEST__.forceDemoStart(1); } catch (e) {}
     };
     const waitLearners = setInterval(function () {
