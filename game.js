@@ -11,6 +11,7 @@
   const LEVELS = 5;
   const ITEMS = 20;
   const LIVES = 3;
+  const MAX_LIVES = 5;
   const MAX_ATTEMPTS = 1;
   const BASE_PTS = [0, 10, 20, 30, 40, 50];
   const ITEM_SEC = [0, 8, 7, 6, 6, 7];
@@ -101,6 +102,12 @@
       tone(420, 0.08, 'triangle', 0.28, t);
       tone(260, 0.14, 'sine', 0.18, t + 0.04);
     }
+    function bonusLife() {
+      const c = ensure(); if (!c) return;
+      const t = c.currentTime;
+      [523, 659, 784, 988, 1175].forEach(function (f, i) { tone(f, 0.13, 'sine', 0.28, t + i * 0.07); });
+      tone(1568, 0.22, 'triangle', 0.18, t + 0.38);
+    }
     function levelUp() {
       const c = ensure(); if (!c) return;
       const t = c.currentTime;
@@ -135,7 +142,7 @@
       level = lv;
       if (humOsc) humOsc.frequency.setTargetAtTime(110 + level * 8, (ctx && ctx.currentTime) || 0, 0.3);
     }
-    return { unlock, toggle, setEnabled, paintBtn, ding, buzz, twang, levelUp, startMusic, stopMusic, setLevel };
+    return { unlock, toggle, setEnabled, paintBtn, ding, buzz, twang, bonusLife, levelUp, startMusic, stopMusic, setLevel };
   })();
 
   function $(id) { return document.getElementById(id); }
@@ -482,15 +489,38 @@
     })();
   }
 
+
+  function pickBonusIndices(n) {
+    // Exactly 2 bonus items per level: never item 1 (index 0), never adjacent.
+    const pool = [];
+    for (let i = 1; i < n; i++) pool.push(i);
+    for (let i = pool.length - 1; i > 0; i--) {
+      const j = (Math.random() * (i + 1)) | 0;
+      const tmp = pool[i]; pool[i] = pool[j]; pool[j] = tmp;
+    }
+    const a = pool[0];
+    let b = null;
+    for (let i = 1; i < pool.length; i++) {
+      if (Math.abs(pool[i] - a) > 1) { b = pool[i]; break; }
+    }
+    if (b == null) b = (a >= n - 2) ? a - 2 : a + 2;
+    return a < b ? [a, b] : [b, a];
+  }
+  function isBonusQ() {
+    return !!(run && run.bonusIdx && run.bonusIdx.indexOf(run.qIndex) >= 0);
+  }
+
   function startLevel(level) {
     if (!attempt || !attempt.active) { alert('Start an attempt first.'); return; }
     Sound.setLevel(level);
     if (level > 1) Sound.levelUp();
     const questions = IRQuestions.generateLevel(level, ITEMS);
+    const bonusIdx = pickBonusIndices(ITEMS);
     run = {
       level: level,
       questions: questions,
       qIndex: 0,
+      bonusIdx: bonusIdx,
       lives: LIVES,
       correct: 0,
       score: 0,
@@ -523,6 +553,9 @@
     resetAimState();
     run.itemT = itemDuration(run.level);
     run.itemMax = run.itemT;
+    if (isBonusQ()) {
+      try { Sound.bonusLife(); } catch (e) {}
+    }
   }
 
   function updateHud() {
@@ -531,9 +564,18 @@
     $('hud-level').textContent = 'L' + run.level;
     $('hud-q').textContent = (run.qIndex + 1) + '/' + ITEMS;
     $('hud-score').textContent = String((attempt ? attempt.score : 0) + run.score);
-    $('hud-lives').textContent = '❤'.repeat(run.lives) + '♡'.repeat(Math.max(0, LIVES - run.lives));
+    const lifeFill = Math.max(0, run.lives);
+    $('hud-lives').textContent = '❤'.repeat(lifeFill) + (lifeFill < LIVES ? '♡'.repeat(LIVES - lifeFill) : '');
     const q = run.questions[run.qIndex];
-    $('hud-prompt').textContent = q ? q.prompt : '';
+    const bonus = isBonusQ();
+    const ban = $('hud-bonus');
+    if (ban) {
+      ban.textContent = '❤ BONUS LIFE question';
+      ban.classList.toggle('show', bonus);
+      ban.hidden = !bonus;
+    }
+    $('hud-prompt').textContent = q ? (q.promptDisplay || q.prompt) : '';
+    $('hud-prompt').classList.toggle('bonus', bonus);
     const frac = Math.max(0, Math.min(1, run.itemT / run.itemMax));
     $('timer-bar').style.transform = 'scaleX(' + frac + ')';
     $('timer-label').textContent = run.itemT.toFixed(1) + 's';
@@ -566,9 +608,15 @@
       run.streak++;
       const gained = BASE_PTS[run.level] + Math.floor(run.streak / 3) * 5;
       run.score += gained;
-      run.flash = { kind: 'ok', t: 0.55, gained: gained };
+      let bonusGain = false;
+      if (isBonusQ() && run.lives < MAX_LIVES) {
+        run.lives++;
+        bonusGain = true;
+      }
+      run.flash = { kind: 'ok', t: 0.7, gained: gained, bonusLife: bonusGain };
       burstAt(target.x, target.y, true);
       Sound.ding();
+      if (bonusGain) Sound.bonusLife();
     } else {
       run.streak = 0;
       run.lives--;
@@ -1060,6 +1108,18 @@
     ctx.globalAlpha = alpha;
     ctx.translate(t.x, t.y);
     const r = t.r;
+    if (isBonusQ() && !t.hit) {
+      const pulse = 0.35 + 0.2 * Math.sin((run.skyT || 0) * 6);
+      ctx.fillStyle = 'rgba(255,213,79,' + pulse + ')';
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 1.55, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,235,59,.9)';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 1.25, 0, Math.PI * 2);
+      ctx.stroke();
+    }
     // Soft drop shadow
     ctx.fillStyle = 'rgba(0,0,0,.22)';
     ctx.beginPath();
@@ -1537,6 +1597,11 @@
         ctx.font = 'bold 28px system-ui';
         ctx.textAlign = 'center';
         ctx.fillText('+' + run.flash.gained, W / 2, H * 0.4);
+        if (run.flash.bonusLife) {
+          ctx.fillStyle = '#ffd54f';
+          ctx.font = 'bold 26px system-ui';
+          ctx.fillText('+1 ❤', W / 2, H * 0.4 + 34);
+        }
       }
     }
     ctx.restore();
@@ -1732,6 +1797,9 @@
     fireArrow: fireArrow,
     targetAt: targetAt,
     resolveHit: resolveHit,
+    pickBonusIndices: pickBonusIndices,
+    isBonusQ: isBonusQ,
+    MAX_LIVES: MAX_LIVES,
     spawnTargets: spawnTargets,
     forceDemoStart: function (level) {
       player = player.name ? player : { name: 'Demo Archer', grade: '11', section: 'TEST' };

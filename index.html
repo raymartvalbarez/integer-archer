@@ -72,6 +72,10 @@ td.lvl{font-weight:700;color:#0d47a1}
   #timer-wrap{margin-top:4px;height:6px}
   #controls{padding:4px 8px max(6px,env(safe-area-inset-bottom))}
 }
+
+#hud-bonus{display:none;margin-top:6px;background:linear-gradient(90deg,#fff8e1,#ffd54f,#ffe082);color:#b71c1c;font-weight:900;font-size:.78rem;text-align:center;padding:5px 8px;border-radius:8px;letter-spacing:.35px;box-shadow:0 0 14px #ffd54faa,0 2px 0 #f9a825}
+#hud-bonus.show{display:block}
+#hud-prompt.bonus{background:linear-gradient(180deg,#fffde7,#ffd54f)!important;box-shadow:0 0 16px #ffd54fcc,0 2px 0 #f9a825!important;color:#b71c1c!important}
 </style>
 </head>
 <body>
@@ -115,6 +119,7 @@ td.lvl{font-weight:700;color:#0d47a1}
       <span>Score <span id="hud-score">0</span></span>
       <span id="hud-lives">❤❤❤</span>
     </div>
+    <div id="hud-bonus" hidden>❤ BONUS LIFE question</div>
     <div id="hud-prompt">—</div>
     <div id="timer-wrap"><div id="timer-bar"></div><span id="timer-label">8.0s</span></div>
   </div>
@@ -154,7 +159,7 @@ td.lvl{font-weight:700;color:#0d47a1}
   </div>
 </section>
 
-<script src="questions.js?v=20261105d"></script>
-<script src="game.js?v=20261105d"></script>
+<script src="questions.js?v=20261105e"></script>
+<script src="game.js?v=20261105e"></script>
 </body>
 </html>
