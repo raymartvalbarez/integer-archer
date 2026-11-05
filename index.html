@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"><meta http-equiv="Pragma" content="no-cache"><meta http-equiv="Expires" content="0">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#1a3a5c">
+<title>Integer Archer · Bago NHS</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;background:linear-gradient(180deg,#1a3a5c 0%,#0b1e33 40%,#061018 100%);color:#fff;overflow:hidden}
+body{display:flex;flex-direction:column}
+header.app{flex:0 0 auto;padding:10px 14px;background:linear-gradient(90deg,#0b1e33,#1a3a5c);display:flex;align-items:center;gap:10px;border-bottom:2px solid #f5c51855;box-shadow:0 2px 12px rgba(0,0,0,.35)}
+.logo{width:40px;height:40px;border-radius:50%;background:radial-gradient(circle at 30% 30%,#ffe566,#f5c518);color:#0b1e33;display:grid;place-items:center;font-weight:900;font-size:1rem;box-shadow:0 2px 0 #c9a012,0 4px 10px rgba(0,0,0,.3)}
+header h1{font-size:1.08rem;margin:0;line-height:1.15;letter-spacing:.2px}
+header small{display:block;opacity:.8;font-weight:500;font-size:.7rem;margin-top:2px}
+.screen{display:none;flex:1;overflow:auto;-webkit-overflow-scrolling:touch}
+.screen.active{display:flex;flex-direction:column}
+.card{background:#fff;color:#1a1a1a;border-radius:16px;padding:18px;margin:14px;max-width:480px;width:calc(100% - 28px);align-self:center;box-shadow:0 8px 28px rgba(0,0,0,.28)}
+.hero{text-align:center;margin-bottom:8px}
+.hero .badge{display:inline-block;background:#e3f2fd;color:#0d47a1;font-weight:800;font-size:.72rem;padding:4px 10px;border-radius:999px;margin-bottom:8px}
+.hero strong{display:block;font-size:1.15rem;color:#0b1e33}
+.hero .tag{font-size:.78rem;color:#555;margin-top:4px}
+label{display:block;font-weight:700;margin:10px 0 4px;font-size:.88rem;color:#333}
+input,select{width:100%;padding:12px;font-size:1rem;border:1.5px solid #cfd8dc;border-radius:10px;background:#fafafa}
+input:focus,select:focus{outline:2px solid #f5c518;border-color:#f5c518;background:#fff}
+select:disabled{opacity:.55;background:#eee}
+button.primary{width:100%;margin-top:14px;padding:14px;font-size:1.05rem;background:linear-gradient(180deg,#ffe566,#f5c518);border:0;border-radius:12px;font-weight:800;color:#0b1e33;box-shadow:0 3px 0 #c9a012}
+button.primary:active{transform:translateY(2px);box-shadow:0 1px 0 #c9a012}
+button.primary:disabled{opacity:.55}
+button.secondary{width:100%;margin-top:8px;padding:12px;font-size:.95rem;background:#e3f2fd;border:0;border-radius:12px;font-weight:700;color:#0d47a1}
+button.ghost{background:transparent;border:1.5px solid rgba(255,255,255,.4);color:#fff;padding:10px 14px;border-radius:10px;font-weight:700}
+.note{font-size:.78rem;opacity:.88;line-height:1.4;margin:10px 0 0;color:#444}
+.muted{opacity:.7;text-align:center;padding:16px}
+#level-btns{display:grid;grid-template-columns:1fr;gap:8px;margin-top:8px}
+#level-btns button.lvl{padding:16px;border:0;border-radius:12px;background:linear-gradient(180deg,#1565c0,#0d47a1);color:#fff;font-weight:800;font-size:1.05rem;box-shadow:0 3px 0 #08306b}
+#player-label{font-size:.85rem;opacity:.95;margin-top:6px;font-weight:600;color:#0d47a1}
+#screen-game{overflow:hidden;background:#1a3a5c}
+#hud{flex:0 0 auto;padding:8px 10px 6px;background:linear-gradient(180deg,#0b1e33,#1a3a5c);border-bottom:1px solid #f5c51844}
+#hud-top{display:flex;justify-content:space-between;align-items:center;font-weight:700;font-size:.82rem;gap:6px;flex-wrap:wrap}
+#hud-attempt{font-size:.78rem;opacity:.95;width:100%;text-align:center;order:-1;color:#ffe566;letter-spacing:.3px}
+#hud-prompt{margin-top:6px;background:linear-gradient(180deg,#ffe566,#f5c518);color:#0b1e33;font-weight:900;font-size:1.12rem;text-align:center;padding:8px 6px;border-radius:10px;min-height:42px;box-shadow:0 2px 0 #c9a012}
+#timer-wrap{margin-top:6px;height:8px;background:#1a3a5c;border-radius:6px;overflow:hidden;position:relative;border:1px solid #ffffff22}
+#timer-bar{height:100%;width:100%;background:linear-gradient(90deg,#66bb6a,#f5c518,#ef5350);border-radius:6px;transform-origin:left center;transition:none}
+#timer-label{position:absolute;right:4px;top:-14px;font-size:.65rem;opacity:.85;font-weight:700}
+#game-wrap{flex:1;position:relative;min-height:0;overflow:hidden}
+#game{display:block;width:100%;height:100%;touch-action:none;background:#87ceeb}
+#controls{flex:0 0 auto;display:flex;gap:8px;padding:8px 10px max(12px,env(safe-area-inset-bottom));background:#0b1e33;align-items:center;z-index:2}
+#controls .hint{flex:1;font-size:.78rem;opacity:.9;line-height:1.3}
+#controls label.tap{flex:0 0 auto;font-size:.72rem;display:flex;align-items:center;gap:4px;white-space:nowrap}
+table{width:100%;border-collapse:collapse;font-size:.88rem}
+th,td{padding:8px 6px;border-bottom:1px solid #e0e0e0;text-align:left}
+th{background:#e3f2fd}
+.no-tries{background:#ffebee;color:#b71c1c;padding:14px;border-radius:12px;text-align:center;line-height:1.45}
+#sum-sync{font-size:.8rem;opacity:.85;margin-top:8px}
+#load-status{font-size:.78rem;color:#666;margin-top:6px;min-height:1.2em}
+tr.rank-1{background:linear-gradient(90deg,#fff8e1,#fffde7)}
+tr.rank-2{background:linear-gradient(90deg,#f5f5f5,#eceff1)}
+tr.rank-3{background:linear-gradient(90deg,#efebe9,#fbe9e7)}
+td.rank-cell{white-space:nowrap;font-weight:800;width:2.6em}
+td.pts{font-weight:800;color:#1b5e20}
+td.lvl{font-weight:700;color:#0d47a1}
+.board-link{display:block;text-align:center;margin-top:10px;font-weight:800;color:#0d47a1;text-decoration:none;padding:10px;border-radius:10px;background:#e3f2fd}
+.board-link:active{background:#bbdefb}
+#screen-board .card{max-width:560px}
+@media (orientation:landscape) and (max-height:500px){
+  header.app{padding:4px 10px}
+  header.app .sub{display:none}
+  #hud{padding:4px 8px 4px}
+  #hud-prompt{font-size:.95rem;padding:4px 6px;min-height:28px;margin-top:4px}
+  #timer-wrap{margin-top:4px;height:6px}
+  #controls{padding:4px 8px max(6px,env(safe-area-inset-bottom))}
+}
+</style>
+</head>
+<body>
+<header class="app">
+  <div class="logo">IA</div>
+  <h1>Integer Archer<small class="sub">Bago National High School – Integer Archer</small></h1>
+  <button type="button" id="btn-sound" title="Music &amp; sound" aria-label="Toggle sound"
+    style="margin-left:auto;background:#f5c518;color:#0b1e33;border:0;border-radius:999px;padding:8px 12px;font-weight:800;font-size:.85rem;box-shadow:0 2px 0 #c9a012">🔊 On</button>
+</header>
+
+<section id="screen-start" class="screen active">
+  <div class="card">
+    <div class="hero">
+      <div class="badge">Bago NHS · ADM · Sample</div>
+      <strong>Aim. Shoot the correct integer.</strong>
+      <div class="tag">Pull back to aim · or tap a target · 1 try only</div>
+    </div>
+    <label for="inp-grade">Grade</label>
+    <select id="inp-grade"><option value="">Loading…</option></select>
+    <label for="inp-section">Section</label>
+    <select id="inp-section" disabled><option value="">Select grade first</option></select>
+    <label for="inp-name">Name</label>
+    <select id="inp-name" disabled><option value="">Select section first</option></select>
+    <div id="load-status">Loading class list…</div>
+    <button class="primary" id="btn-play" disabled>Continue</button>
+    <button class="secondary" id="btn-go-board">Leaderboard</button>
+    <p class="note">1 try · 5 levels × 20 items · 3 lives/level (fresh each level) · Wrong shots never show the answer · Pull slingshot or enable Tap aim.</p>
+    <div id="levels-wrap" style="display:none;margin-top:12px">
+      <div id="player-label"></div>
+      <div id="level-btns"></div>
+    </div>
+  </div>
+</section>
+
+<section id="screen-game" class="screen">
+  <div id="hud">
+    <div id="hud-top">
+      <span id="hud-attempt">1 try only</span>
+      <span id="hud-level">L1</span>
+      <span id="hud-q">1/20</span>
+      <span>Score <span id="hud-score">0</span></span>
+      <span id="hud-lives">❤❤❤</span>
+    </div>
+    <div id="hud-prompt">—</div>
+    <div id="timer-wrap"><div id="timer-bar"></div><span id="timer-label">8.0s</span></div>
+  </div>
+  <div id="game-wrap"><canvas id="game"></canvas></div>
+  <div id="controls">
+    <div class="hint" id="ctrl-hint">Drag near the archer to pull &amp; aim · release to shoot</div>
+    <label class="tap"><input type="checkbox" id="chk-tap" checked> Tap aim</label>
+  </div>
+</section>
+
+<section id="screen-summary" class="screen">
+  <div class="card">
+    <h2 id="sum-title" style="margin:0 0 8px;color:#0b1e33">Level done</h2>
+    <p id="sum-detail" style="margin:0;line-height:1.45"></p>
+    <p id="sum-sync"></p>
+    <button class="primary" id="btn-next">Next Level</button>
+    <button class="secondary" id="btn-retry" style="display:none">Try again</button>
+    <button class="secondary" id="btn-menu">Back</button>
+  </div>
+</section>
+
+<section id="screen-board" class="screen">
+  <div class="card">
+    <strong>Leaderboard · Grade 11 &amp; 12</strong>
+    <select id="board-filter" style="margin:10px 0">
+      <option value="all">All</option>
+      <option value="11">Grade 11</option>
+      <option value="12">Grade 12</option>
+    </select>
+    <table>
+      <thead><tr><th>#</th><th>Name</th><th>Grade / Sec</th><th>Points</th><th>Level</th></tr></thead>
+      <tbody id="board-body"><tr><td colspan="5" class="muted">Loading…</td></tr></tbody>
+    </table>
+    <a class="board-link" href="leaderboard.html" target="_blank" rel="noopener">Open full leaderboard ↗</a>
+    <button class="secondary" id="btn-board-back">Back</button>
+    <p class="note">🥇🥈🥉 Top 3 · Ties: points → level → earliest · 1 try each.</p>
+  </div>
+</section>
+
+<script src="questions.js?v=20261105a"></script>
+<script src="game.js?v=20261105a"></script>
+</body>
+</html>
