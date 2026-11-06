@@ -189,6 +189,18 @@
         progress.bestTotal = Math.max(0, Number(p.bestTotal) || 0);
         progress.bestLevel = Math.max(0, Number(p.bestLevel) || 0);
         progress.attemptScores = Array.isArray(p.attemptScores) ? p.attemptScores : [];
+        if (p.openAttempt && typeof p.openAttempt === 'object') {
+          progress.openAttempt = {
+            num: Math.max(1, Number(p.openAttempt.num) || 1),
+            score: Math.max(0, Number(p.openAttempt.score) || 0),
+            bestLevel: Math.max(0, Number(p.openAttempt.bestLevel) || 0),
+            totalCorrect: Math.max(0, Number(p.openAttempt.totalCorrect) || 0),
+            nextLevel: clampLevel(p.openAttempt.nextLevel),
+            awaitingNext: !!p.openAttempt.awaitingNext,
+          };
+        } else {
+          clearOpenAttempt();
+        }
       }
     } catch (e) {}
   }
@@ -197,6 +209,47 @@
       localStorage.setItem('ia-progress-' + keyOf(player), JSON.stringify(progress));
     } catch (e) {}
   }
+
+
+  function clampLevel(n) {
+    n = Math.max(1, Math.min(LEVELS, Number(n) || 1));
+    return n | 0;
+  }
+
+  function clearOpenAttempt() {
+    if (progress && progress.openAttempt) delete progress.openAttempt;
+  }
+
+  /** Persist in-progress attempt. Mid-level: keep banked score only (restart that level). */
+  function snapshotOpenAttempt(opts) {
+    opts = opts || {};
+    if (DEMO || !attempt || !attempt.active || !player || !player.name) return;
+    var nextLevel = opts.nextLevel != null ? opts.nextLevel : 1;
+    var awaitingNext = !!opts.awaitingNext;
+    progress.openAttempt = {
+      num: attempt.num,
+      score: Math.max(0, Number(attempt.score) || 0),
+      bestLevel: Math.max(0, Number(attempt.bestLevel) || 0),
+      totalCorrect: Math.max(0, Number(attempt.totalCorrect) || 0),
+      nextLevel: clampLevel(nextLevel),
+      awaitingNext: awaitingNext,
+    };
+    saveLocal();
+  }
+
+  function persistOpenAttemptOnHide() {
+    if (DEMO || !attempt || !attempt.active) return;
+    if (run && run.over) {
+      if (run.level < LEVELS) {
+        snapshotOpenAttempt({ nextLevel: run.level + 1, awaitingNext: true });
+      }
+    } else if (run && !run.over) {
+      snapshotOpenAttempt({ nextLevel: run.level, awaitingNext: false });
+    } else {
+      snapshotOpenAttempt({ nextLevel: 1, awaitingNext: false });
+    }
+  }
+
 
   async function fetchRemoteRecord() {
     try {
@@ -210,12 +263,18 @@
   }
   function mergeRemote(rec) {
     if (!rec) return;
+    const keepOpen = progress.openAttempt;
     progress.attemptsUsed = Math.max(progress.attemptsUsed, Math.max(0, Number(rec.attempts) || 0));
     progress.bestTotal = Math.max(progress.bestTotal, Math.max(0, Number(rec.total) || 0));
     progress.bestLevel = Math.max(progress.bestLevel, Math.max(0, Number(rec.bestLevel) || 0));
     if (Array.isArray(rec.attemptScores) && rec.attemptScores.length) {
       const set = new Set(progress.attemptScores.concat(rec.attemptScores.map(Number)));
       progress.attemptScores = [...set].filter(function (n) { return Number.isFinite(n); });
+    }
+    if (progress.attemptsUsed >= MAX_ATTEMPTS) {
+      clearOpenAttempt();
+    } else if (keepOpen) {
+      progress.openAttempt = keepOpen;
     }
     saveLocal();
   }
@@ -475,14 +534,34 @@
         const rec = await fetchRemoteRecord();
         mergeRemote(rec);
         if (progress.attemptsUsed >= MAX_ATTEMPTS) {
+          clearOpenAttempt();
+          saveLocal();
           paintLobby();
           return;
         }
+      }
+      if (!DEMO && progress.openAttempt && progress.attemptsUsed < MAX_ATTEMPTS) {
+        const oa = progress.openAttempt;
+        const lvl = clampLevel(oa.nextLevel);
+        attempt = {
+          num: Math.max(1, Number(oa.num) || progress.attemptsUsed + 1),
+          score: Math.max(0, Number(oa.score) || 0),
+          unlocked: LEVELS,
+          bestLevel: Math.max(0, Number(oa.bestLevel) || 0),
+          totalCorrect: Math.max(0, Number(oa.totalCorrect) || 0),
+          active: true,
+        };
+        Sound.unlock();
+        Sound.startMusic(lvl);
+        snapshotOpenAttempt({ nextLevel: lvl, awaitingNext: false });
+        startLevel(lvl);
+        return;
       }
       attempt = {
         num: DEMO ? 1 : progress.attemptsUsed + 1,
         score: 0, unlocked: LEVELS, bestLevel: 0, totalCorrect: 0, active: true,
       };
+      if (!DEMO) snapshotOpenAttempt({ nextLevel: 1, awaitingNext: false });
       Sound.unlock();
       Sound.startMusic(1);
       startLevel(1);
@@ -545,6 +624,9 @@
     resize();
     cancelAnimationFrame(raf);
     raf = requestAnimationFrame(loop);
+    if (!DEMO && attempt && attempt.active) {
+      snapshotOpenAttempt({ nextLevel: level, awaitingNext: false });
+    }
   }
 
   function spawnCurrent() {
@@ -682,6 +764,7 @@
     if (isLast) {
       finishAttempt().then(function () { paintSummaryButtons(false); });
     } else {
+      if (!DEMO) snapshotOpenAttempt({ nextLevel: run.level + 1, awaitingNext: true });
       $('sum-sync').textContent =
         (MAX_ATTEMPTS === 1 ? '1 try' : ('Attempt ' + attempt.num + ' of ' + MAX_ATTEMPTS)) +
         ' · Level ' + (run.level + 1) + ' next.';
@@ -704,6 +787,7 @@
     progress.attemptScores = (progress.attemptScores || []).concat([score]);
     progress.bestTotal = Math.max(progress.bestTotal, score);
     progress.bestLevel = Math.max(progress.bestLevel, bestLevel);
+    clearOpenAttempt();
     saveLocal();
     const entry = {
       name: player.name, grade: player.grade, section: player.section || '',
@@ -1720,14 +1804,20 @@
       box.appendChild(msg);
       return;
     }
+    const oa = progress.openAttempt;
+    const resumeLvl = oa ? clampLevel(oa.nextLevel) : 0;
     const b = document.createElement('button');
     b.className = 'lvl';
-    b.textContent = MAX_ATTEMPTS === 1 ? 'Start Run (1 try)' : ('Start Attempt ' + (progress.attemptsUsed + 1) + ' of ' + MAX_ATTEMPTS);
+    b.textContent = oa
+      ? ('Resume Level ' + resumeLvl)
+      : (MAX_ATTEMPTS === 1 ? 'Start Run (1 try)' : ('Start Attempt ' + (progress.attemptsUsed + 1) + ' of ' + MAX_ATTEMPTS));
     b.onclick = function () { startAttempt(); };
     box.appendChild(b);
     const hint = document.createElement('p');
     hint.className = 'note';
-    hint.textContent = '1 try only · Levels 1→5 (fresh lives each level) · Leaderboard saves your best.';
+    hint.textContent = oa
+      ? 'Your phone saved your place. You cannot restart from Level 1.'
+      : '1 try only · Levels 1→5 (fresh lives each level) · Leaderboard saves your best.';
     box.appendChild(hint);
   }
 
@@ -1772,16 +1862,35 @@
   };
   $('btn-retry').onclick = function () { startAttempt(); };
   $('btn-menu').onclick = function () {
-    if (run && !run.over && attempt && attempt.active) {
-      run.over = true;
-      cancelAnimationFrame(raf);
-      attempt.score += run.score;
-      finishAttempt().then(function () { show('start'); paintLobby(); });
+    if (attempt && attempt.active) {
+      if (run && !run.over) {
+        run.over = true;
+        cancelAnimationFrame(raf);
+        if (!DEMO) snapshotOpenAttempt({ nextLevel: run.level, awaitingNext: false });
+      } else if (run && run.over && run.level < LEVELS) {
+        if (!DEMO) snapshotOpenAttempt({ nextLevel: run.level + 1, awaitingNext: true });
+      } else if (!run) {
+        if (!DEMO) snapshotOpenAttempt({ nextLevel: 1, awaitingNext: false });
+      }
+      try { Sound.stopMusic(); } catch (e) {}
+      attempt = null;
+      run = null;
+      show('start');
+      paintLobby();
       return;
     }
     show('start');
     paintLobby();
   };
+
+  function onLeavePage() {
+    persistOpenAttemptOnHide();
+  }
+  window.addEventListener('pagehide', onLeavePage);
+  window.addEventListener('beforeunload', onLeavePage);
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'hidden') onLeavePage();
+  });
 
   window.__IA_TEST__ = {
     DEMO: DEMO,
