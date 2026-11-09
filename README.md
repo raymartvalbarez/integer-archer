@@ -6,9 +6,11 @@ Bago NHS ADM math game — shoot the target with the correct integer.
 **Demo (no scores):** https://raymartvalbarez.github.io/integer-archer/?demo=1  
 **Projector board:** https://raymartvalbarez.github.io/integer-archer/leaderboard.html
 
-Sibling of [Integer Racer](https://raymartvalbarez.github.io/integer-racer/). Separate MantleDB namespace `bnhs-iarcher-nov2026`.
+Sibling of [Integer Racer](https://raymartvalbarez.github.io/integer-racer/). Separate MantleDB namespace `bnhs-iarcher-nov10-2026`.
 
 ## Controls
 - **Slingshot:** drag near the archer to pull, release to shoot (trajectory guide shown).
 - **Tap aim:** enable the checkbox, then tap a floating number target.
 - Wrong hit / miss / time-up loses a life — correct answer is never shown.
+
+ADM Activity session: **Nov. 10, 2026** (Asia/Manila). Fresh MantleDB namespace `bnhs-iarcher-nov10-2026`.

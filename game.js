@@ -2,14 +2,14 @@
 (function () {
   'use strict';
 
-  const API_NS = 'bnhs-iarcher-nov2026';
+  const API_NS = 'bnhs-iarcher-nov10-2026';
   const API = 'https://mantledb.sh/v2/' + API_NS;
   const API_EXPORT = 'https://mantledb.sh/v2/export/' + API_NS;
   const ADM_API =
     'https://script.google.com/macros/s/AKfycbwGMSP8NmPT4GYMJZTw4qruizfFd5wzORZHZRM-HOUJOSQyyg3Gx20L5MEWsqT5EFdl-w/exec';
 
   const LEVELS = 5;
-  const ITEMS = 20;
+  const ITEMS = 8;
   const LIVES = 3;
   const MAX_LIVES = 5;
   const MAX_ATTEMPTS = 1;
@@ -19,6 +19,23 @@
   const DEMO =
     /(?:\?|&)(?:demo|test)=1(?:&|$)/.test(location.search || '') ||
     location.hash === '#demo';
+
+  const SESSION_LABEL = 'ADM Activity · Nov. 10, 2026';
+  const SESSION_DATE = 'Nov. 10, 2026';
+  const SESSION_ISO = '2026-11-10';
+  const SESSION_KEY = 'nov10';
+  // Scored play open for ADM day (Asia/Manila): Nov 9–10, 2026. Demo always works.
+  const OPEN_FROM_MS = Date.parse('2026-11-09T00:00:00+08:00');
+  const OPEN_UNTIL_MS = Date.parse('2026-11-10T23:59:59.999+08:00');
+  function isSessionOpen() {
+    var now = Date.now();
+    return now >= OPEN_FROM_MS && now <= OPEN_UNTIL_MS;
+  }
+
+
+  function sessionClosedMessage() {
+    return 'This ADM activity is for Nov. 10, 2026 (Asia/Manila). Use ?demo=1 to practice anytime.';
+  }
 
   // ---- Web Audio ----
   const Sound = (function () {
@@ -182,7 +199,7 @@
   }
   function loadLocal() {
     try {
-      const raw = localStorage.getItem('ia-progress-' + keyOf(player));
+      const raw = localStorage.getItem('ia-progress-nov10-' + keyOf(player));
       if (raw) {
         const p = JSON.parse(raw);
         progress.attemptsUsed = Math.max(0, Number(p.attemptsUsed) || 0);
@@ -206,7 +223,7 @@
   }
   function saveLocal() {
     try {
-      localStorage.setItem('ia-progress-' + keyOf(player), JSON.stringify(progress));
+      localStorage.setItem('ia-progress-nov10-' + keyOf(player), JSON.stringify(progress));
     } catch (e) {}
   }
 
@@ -289,17 +306,17 @@
       });
       return entries.filter(function (e) { return Number(e.total) <= MAX_PLAUSIBLE; });
     } catch (e) {
-      try { return JSON.parse(localStorage.getItem('ia-local-board') || '[]'); }
+      try { return JSON.parse(localStorage.getItem('ia-local-board-nov10') || '[]'); }
       catch (e2) { return []; }
     }
   }
   async function submitRecord(entry) {
-    const local = JSON.parse(localStorage.getItem('ia-local-board') || '[]');
+    const local = JSON.parse(localStorage.getItem('ia-local-board-nov10') || '[]');
     const idx = local.findIndex(function (e) {
       return norm(e.name) === norm(entry.name) && String(e.grade) === String(entry.grade);
     });
     if (idx >= 0) local[idx] = entry; else local.push(entry);
-    localStorage.setItem('ia-local-board', JSON.stringify(local));
+    localStorage.setItem('ia-local-board-nov10', JSON.stringify(local));
     try {
       const path = API + '/scores/' + keyOf(entry);
       let best = Object.assign({}, entry);
@@ -342,7 +359,7 @@
 
   /* ---- Reliable upload: pending queue + retry (added Nov 6 2026) ---- */
   var remoteConfirmed = false;
-  function pendingKey(p) { return 'ia-pending-' + keyOf(p); }
+  function pendingKey(p) { return 'ia-pending-nov10-' + keyOf(p); }
   function setPending(entry) {
     if (DEMO) return;
     try { localStorage.setItem(pendingKey(entry), JSON.stringify(entry)); } catch (e) {}
@@ -373,7 +390,7 @@
     try {
       for (var i = 0; i < localStorage.length; i++) {
         var k = localStorage.key(i);
-        if (k && k.indexOf('ia-pending-') === 0) keys.push(k);
+        if (k && k.indexOf('ia-pending-nov10-') === 0) keys.push(k);
       }
       for (var j = 0; j < keys.length; j++) {
         var e = null;
@@ -394,6 +411,9 @@
         total: progress.bestTotal, bestLevel: progress.bestLevel,
         attempts: progress.attemptsUsed, attemptScores: (progress.attemptScores || []).slice(-4),
         ts: Date.now(),
+        date: SESSION_ISO,
+        admDate: SESSION_DATE,
+        session: SESSION_KEY,
       });
     }
     if (hasPending()) flushPending();
@@ -603,6 +623,10 @@
 
   function startAttempt() {
     return (async function () {
+      if (!DEMO && !isSessionOpen()) {
+        alert(sessionClosedMessage());
+        return;
+      }
       if (!DEMO) {
         const rec = await fetchRemoteRecord();
         mergeRemote(rec); afterRemote(rec);
@@ -867,6 +891,9 @@
       total: progress.bestTotal, bestLevel: progress.bestLevel,
       attempts: progress.attemptsUsed, attemptScores: progress.attemptScores.slice(-4),
       correct: attempt.totalCorrect, ts: Date.now(),
+        date: SESSION_ISO,
+        admDate: SESSION_DATE,
+        session: SESSION_KEY,
     };
     $('sum-sync').textContent = 'Saving best score…';
     setPending(entry);
@@ -1891,7 +1918,7 @@
     hint.className = 'note';
     hint.textContent = oa
       ? 'Your phone saved your place. You cannot restart from Level 1.'
-      : '1 try only · Levels 1→5 (fresh lives each level) · Leaderboard saves your best.';
+      : '1 try only · 5 levels × 8 items (40 total) · Leaderboard saves your best · Nov. 10, 2026.';
     box.appendChild(hint);
   }
 
@@ -1913,6 +1940,10 @@
     localStorage.setItem('ia-section', section);
     progress = blankProgress();
     loadLocal();
+    if (!DEMO && !isSessionOpen()) {
+      alert(sessionClosedMessage());
+      return;
+    }
     $('btn-play').disabled = true;
     $('btn-play').textContent = 'Checking tries…';
     const rec = await fetchRemoteRecord();
@@ -1967,6 +1998,10 @@
   });
 
   window.__IA_TEST__ = {
+    SESSION_LABEL: SESSION_LABEL,
+    SESSION_ISO: SESSION_ISO,
+    API_NS: API_NS,
+    isSessionOpen: isSessionOpen,
     DEMO: DEMO,
     ITEM_SEC: ITEM_SEC,
     MAX_ATTEMPTS: MAX_ATTEMPTS,
