@@ -26,18 +26,38 @@
   const SESSION_DATE = 'Nov. 13, 2026';
   const SESSION_ISO = '2026-11-13';
   const SESSION_KEY = 'nov13';
-  // Nov 13 scored play uses the nov13 namespace. The nov10 namespace is read-only for leaderboards.
-  // Window (Asia/Manila): Nov 9, 2026 12:00 AM through Nov 13, 2026 11:59 PM. Demo always works. 1-try rule unchanged.
+  // Hard close (Nov 16, 2026): no new play and no new score saves. Leaderboards stay open. Saved MantleDB scores are untouched.
+  const ADM_CLOSED = true;
+  // Previous window (Asia/Manila): Nov 9, 2026 12:00 AM through Nov 13, 2026 11:59 PM.
   const OPEN_FROM_MS = Date.parse('2026-11-09T00:00:00+08:00');
   const OPEN_UNTIL_MS = Date.parse('2026-11-13T23:59:59.999+08:00');
   function isSessionOpen() {
+    if (ADM_CLOSED) return false;
     var now = Date.now();
     return now >= OPEN_FROM_MS && now <= OPEN_UNTIL_MS;
   }
 
-
   function sessionClosedMessage() {
-    return 'This ADM activity is open through Nov. 13, 2026, 11:59 PM (Asia/Manila). Use ?demo=1 to practice anytime.';
+    return 'This game is closed.';
+  }
+
+  function showClosedUI() {
+    var form = document.getElementById('play-form');
+    if (form) form.hidden = true;
+    var msg = document.getElementById('closed-msg');
+    if (msg) msg.hidden = false;
+    var wrap = document.getElementById('levels-wrap');
+    if (wrap) { wrap.hidden = true; wrap.style.display = 'none'; }
+    var how = document.querySelector('#screen-start .how');
+    if (how) how.hidden = true;
+    var demoBtn = document.getElementById('btn-demo');
+    if (demoBtn) demoBtn.hidden = true;
+    var demoBanner = document.getElementById('demo-banner');
+    if (demoBanner) demoBanner.hidden = true;
+    var small = document.querySelector('header.app h1 small');
+    if (small) small.textContent = 'This game is closed';
+    var badge = document.querySelector('.hero .badge');
+    if (badge) badge.textContent = 'Closed';
   }
 
   // ---- Web Audio ----
@@ -322,6 +342,7 @@
     }
   }
 async function submitRecord(entry) {
+    if (ADM_CLOSED) return false;
     const local = JSON.parse(localStorage.getItem('ia-local-board-nov13') || '[]');
     const idx = local.findIndex(function (e) {
       return norm(e.name) === norm(entry.name) && String(e.grade) === String(entry.grade);
@@ -372,7 +393,7 @@ async function submitRecord(entry) {
   var remoteConfirmed = false;
   function pendingKey(p) { return 'ia-pending-nov13-' + keyOf(p); }
   function setPending(entry) {
-    if (DEMO) return;
+    if (DEMO || ADM_CLOSED) return;
     try { localStorage.setItem(pendingKey(entry), JSON.stringify(entry)); } catch (e) {}
   }
   function clearPending(entry) {
@@ -383,7 +404,7 @@ async function submitRecord(entry) {
   }
   function sleepMs(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
   async function submitWithRetry(entry) {
-    if (DEMO) return false;
+    if (DEMO || ADM_CLOSED) return false;
     var waits = [0, 1500, 4000, 9000];
     for (var i = 0; i < waits.length; i++) {
       if (waits[i]) await sleepMs(waits[i]);
@@ -395,7 +416,7 @@ async function submitRecord(entry) {
   }
   var flushing = false;
   async function flushPending() {
-    if (DEMO || flushing) return;
+    if (DEMO || ADM_CLOSED || flushing) return;
     flushing = true;
     var keys = [];
     try {
@@ -751,7 +772,7 @@ async function submitRecord(entry) {
 
   function startAttempt() {
     return (async function () {
-      if (!DEMO && !isSessionOpen()) {
+      if (!isSessionOpen()) {
         alert(sessionClosedMessage());
         return;
       }
@@ -2015,6 +2036,7 @@ async function submitRecord(entry) {
   }
 
   function paintLobby() {
+    if (ADM_CLOSED) { showClosedUI(); return; }
     $('levels-wrap').style.display = '';
     const left = MAX_ATTEMPTS - progress.attemptsUsed;
     $('player-label').textContent =
@@ -2068,7 +2090,7 @@ async function submitRecord(entry) {
     localStorage.setItem('ia-section', section);
     progress = blankProgress();
     loadLocal();
-    if (!DEMO && !isSessionOpen()) {
+    if (!isSessionOpen()) {
       alert(sessionClosedMessage());
       return;
     }
@@ -2151,6 +2173,7 @@ async function submitRecord(entry) {
     SESSION_ISO: SESSION_ISO,
     API_NS: API_NS,
     isSessionOpen: isSessionOpen,
+    ADM_CLOSED: ADM_CLOSED,
     DEMO: DEMO,
     ITEM_SEC: ITEM_SEC,
     MAX_ATTEMPTS: MAX_ATTEMPTS,
@@ -2190,7 +2213,8 @@ async function submitRecord(entry) {
     setTimeout(function () { clearInterval(waitLearners); kick(); }, 4000);
   }
 
-  loadLearners();
+  if (ADM_CLOSED) showClosedUI();
+  if (!ADM_CLOSED) loadLearners();
   Sound.paintBtn();
   const btnSound = $('btn-sound');
   if (btnSound) btnSound.onclick = function () { Sound.toggle(); };
